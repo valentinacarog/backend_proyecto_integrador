@@ -11,10 +11,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
 public class HealthController {
 
-    @GetMapping
+    @GetMapping({"/", "/api"})
     public ResponseEntity<Map<String, Object>> apiRoot() {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "ONLINE");
@@ -33,7 +32,7 @@ public class HealthController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/health")
+    @GetMapping({"/health", "/api/health"})
     public ResponseEntity<Map<String, Object>> healthCheck() {
         Map<String, Object> response = new HashMap<>();
         response.put("status", "ONLINE");

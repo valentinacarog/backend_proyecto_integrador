@@ -40,11 +40,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Rutas públicas
-                .requestMatchers("/error").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/health").permitAll()
-                .requestMatchers("/api/**").permitAll()
+                // Rutas públicas (raíz, health check y endpoints de la API)
+                .requestMatchers("/", "/health", "/error").permitAll()
+                .requestMatchers("/api", "/api/**").permitAll()
                 .anyRequest().authenticated()
             );
 
