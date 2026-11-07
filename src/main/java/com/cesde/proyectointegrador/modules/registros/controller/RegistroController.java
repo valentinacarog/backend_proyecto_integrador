@@ -5,6 +5,7 @@ import com.cesde.proyectointegrador.modules.registros.service.RegistroService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -37,8 +38,25 @@ public class RegistroController {
                         .body((Registro) null));
     }
 
+    private Integer extractId(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof Map) {
+            Object idVal = ((Map<?, ?>) val).get("id");
+            if (idVal instanceof Number) return ((Number) idVal).intValue();
+            if (idVal != null) {
+                try { return Integer.parseInt(idVal.toString()); } catch (Exception ignored) {}
+            }
+        }
+        try {
+            return Integer.parseInt(val.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @PostMapping
-    public ResponseEntity<Registro> create(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<Registro> create(@RequestBody Map<String, Object> payload, Authentication authentication) {
         Registro registro = new Registro();
         registro.setCodigo((String) payload.get("codigo"));
         registro.setTipo(payload.get("tipo") != null ? (String) payload.get("tipo") : "INSCRIPCION");
@@ -46,28 +64,21 @@ public class RegistroController {
         registro.setEstado(payload.get("estado") != null ? (String) payload.get("estado") : "PENDIENTE");
         registro.setObservaciones((String) payload.get("observaciones"));
 
-        Integer usuarioId = null;
-        if (payload.get("usuarioId") != null) {
-            usuarioId = Integer.valueOf(payload.get("usuarioId").toString());
-        } else if (payload.get("usuario_id") != null) {
-            usuarioId = Integer.valueOf(payload.get("usuario_id").toString());
-        }
+        Integer usuarioId = extractId(payload.get("usuarioId"));
+        if (usuarioId == null) usuarioId = extractId(payload.get("usuario_id"));
+        if (usuarioId == null) usuarioId = extractId(payload.get("usuario"));
+        if (usuarioId == null) usuarioId = extractId(payload.get("user"));
 
-        Integer empresaId = null;
-        if (payload.get("empresaId") != null) {
-            empresaId = Integer.valueOf(payload.get("empresaId").toString());
-        } else if (payload.get("empresa_id") != null) {
-            empresaId = Integer.valueOf(payload.get("empresa_id").toString());
-        }
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        Integer retoId = null;
-        if (payload.get("retoId") != null) {
-            retoId = Integer.valueOf(payload.get("retoId").toString());
-        } else if (payload.get("reto_id") != null) {
-            retoId = Integer.valueOf(payload.get("reto_id").toString());
-        }
+        Integer retoId = extractId(payload.get("retoId"));
+        if (retoId == null) retoId = extractId(payload.get("reto_id"));
+        if (retoId == null) retoId = extractId(payload.get("reto"));
 
-        Registro created = registroService.create(registro, usuarioId, empresaId, retoId);
+        String userEmail = (authentication != null) ? authentication.getName() : null;
+        Registro created = registroService.create(registro, usuarioId, empresaId, retoId, userEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -80,26 +91,18 @@ public class RegistroController {
         if (payload.containsKey("estado")) registro.setEstado((String) payload.get("estado"));
         if (payload.containsKey("observaciones")) registro.setObservaciones((String) payload.get("observaciones"));
 
-        Integer usuarioId = null;
-        if (payload.containsKey("usuarioId") && payload.get("usuarioId") != null) {
-            usuarioId = Integer.valueOf(payload.get("usuarioId").toString());
-        } else if (payload.containsKey("usuario_id") && payload.get("usuario_id") != null) {
-            usuarioId = Integer.valueOf(payload.get("usuario_id").toString());
-        }
+        Integer usuarioId = extractId(payload.get("usuarioId"));
+        if (usuarioId == null) usuarioId = extractId(payload.get("usuario_id"));
+        if (usuarioId == null) usuarioId = extractId(payload.get("usuario"));
+        if (usuarioId == null) usuarioId = extractId(payload.get("user"));
 
-        Integer empresaId = null;
-        if (payload.containsKey("empresaId") && payload.get("empresaId") != null) {
-            empresaId = Integer.valueOf(payload.get("empresaId").toString());
-        } else if (payload.containsKey("empresa_id") && payload.get("empresa_id") != null) {
-            empresaId = Integer.valueOf(payload.get("empresa_id").toString());
-        }
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        Integer retoId = null;
-        if (payload.containsKey("retoId") && payload.get("retoId") != null) {
-            retoId = Integer.valueOf(payload.get("retoId").toString());
-        } else if (payload.containsKey("reto_id") && payload.get("reto_id") != null) {
-            retoId = Integer.valueOf(payload.get("reto_id").toString());
-        }
+        Integer retoId = extractId(payload.get("retoId"));
+        if (retoId == null) retoId = extractId(payload.get("reto_id"));
+        if (retoId == null) retoId = extractId(payload.get("reto"));
 
         return registroService.update(id, registro, usuarioId, empresaId, retoId)
                 .map(ResponseEntity::ok)

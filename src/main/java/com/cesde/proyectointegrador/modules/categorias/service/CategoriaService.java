@@ -25,8 +25,19 @@ public class CategoriaService {
     }
 
     public Categoria create(Categoria categoria) {
-        if (categoria.getCodigo() != null) {
+        if (categoria.getCodigo() == null || categoria.getCodigo().trim().isEmpty()) {
+            categoria.setCodigo("CAT-" + (System.currentTimeMillis() % 100000));
+        } else {
             categoria.setCodigo(categoria.getCodigo().trim().toUpperCase());
+        }
+        if (categoria.getDescripcion() == null || categoria.getDescripcion().trim().isEmpty()) {
+            categoria.setDescripcion(categoria.getNombre() != null ? categoria.getNombre() : "Categoría de retos");
+        }
+        if (categoria.getColor() == null || categoria.getColor().trim().isEmpty()) {
+            categoria.setColor("#6366f1");
+        }
+        if (categoria.getEstado() == null || categoria.getEstado().trim().isEmpty()) {
+            categoria.setEstado("ACTIVO");
         }
         return categoriaRepository.save(categoria);
     }

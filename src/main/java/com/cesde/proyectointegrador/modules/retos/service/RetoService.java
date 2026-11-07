@@ -35,12 +35,39 @@ public class RetoService {
     }
 
     public Reto create(Reto reto, Integer empresaId, Integer categoriaId) {
+        if (reto.getTitulo() == null || reto.getTitulo().trim().isEmpty()) {
+            reto.setTitulo("Reto de Innovación");
+        }
+        if (reto.getDescripcion() == null || reto.getDescripcion().trim().isEmpty()) {
+            reto.setDescripcion(reto.getTitulo());
+        }
+        if (reto.getDificultad() == null || reto.getDificultad().trim().isEmpty()) {
+            reto.setDificultad("MEDIA");
+        }
+        if (reto.getPuntos() == null) {
+            reto.setPuntos(100);
+        }
+        if (reto.getFechaLimite() == null) {
+            reto.setFechaLimite(LocalDate.now().plusMonths(1));
+        }
+        if (reto.getEstado() == null || reto.getEstado().trim().isEmpty()) {
+            reto.setEstado("ABIERTO");
+        }
+
         if (empresaId != null) {
             empresaRepository.findById(empresaId).ifPresent(reto::setEmpresa);
         }
+        if (reto.getEmpresa() == null) {
+            empresaRepository.findAll().stream().findFirst().ifPresent(reto::setEmpresa);
+        }
+
         if (categoriaId != null) {
             categoriaRepository.findById(categoriaId).ifPresent(reto::setCategoria);
         }
+        if (reto.getCategoria() == null) {
+            categoriaRepository.findAll().stream().findFirst().ifPresent(reto::setCategoria);
+        }
+
         return retoRepository.save(reto);
     }
 

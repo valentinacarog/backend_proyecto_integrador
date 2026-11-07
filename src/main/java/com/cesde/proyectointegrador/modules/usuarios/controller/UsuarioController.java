@@ -34,6 +34,23 @@ public class UsuarioController {
                         .body((Usuario) null));
     }
 
+    private Integer extractId(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof Map) {
+            Object idVal = ((Map<?, ?>) val).get("id");
+            if (idVal instanceof Number) return ((Number) idVal).intValue();
+            if (idVal != null) {
+                try { return Integer.parseInt(idVal.toString()); } catch (Exception ignored) {}
+            }
+        }
+        try {
+            return Integer.parseInt(val.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @PostMapping
     public ResponseEntity<Usuario> create(@RequestBody Map<String, Object> payload) {
         Usuario usuario = new Usuario();
@@ -45,10 +62,9 @@ public class UsuarioController {
         usuario.setRol(payload.get("rol") != null ? (String) payload.get("rol") : "USUARIO");
         usuario.setEstado(payload.get("estado") != null ? (String) payload.get("estado") : "ACTIVO");
 
-        Integer empresaId = null;
-        if (payload.get("empresaId") != null) {
-            empresaId = Integer.valueOf(payload.get("empresaId").toString());
-        }
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
         Usuario created = usuarioService.create(usuario, empresaId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -65,10 +81,9 @@ public class UsuarioController {
         if (payload.containsKey("rol")) usuario.setRol((String) payload.get("rol"));
         if (payload.containsKey("estado")) usuario.setEstado((String) payload.get("estado"));
 
-        Integer empresaId = null;
-        if (payload.containsKey("empresaId") && payload.get("empresaId") != null) {
-            empresaId = Integer.valueOf(payload.get("empresaId").toString());
-        }
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
         return usuarioService.update(id, usuario, empresaId)
                 .map(ResponseEntity::ok)

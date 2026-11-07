@@ -39,7 +39,7 @@ public class RegistroService {
         return registroRepository.findById(id);
     }
 
-    public Registro create(Registro registro, Integer usuarioId, Integer empresaId, Integer retoId) {
+    public Registro create(Registro registro, Integer usuarioId, Integer empresaId, Integer retoId, String userEmail) {
         if (registro.getCodigo() == null || registro.getCodigo().trim().isEmpty()) {
             int year = Year.now().getValue();
             int randomSuffix = 100 + new Random().nextInt(900);
@@ -48,17 +48,41 @@ public class RegistroService {
             registro.setCodigo(registro.getCodigo().trim().toUpperCase());
         }
 
+        if (registro.getDescripcion() == null || registro.getDescripcion().trim().isEmpty()) {
+            registro.setDescripcion("Inscripción / Registro en plataforma");
+        }
+        if (registro.getTipo() == null || registro.getTipo().trim().isEmpty()) {
+            registro.setTipo("INSCRIPCION");
+        }
+        if (registro.getEstado() == null || registro.getEstado().trim().isEmpty()) {
+            registro.setEstado("PENDIENTE");
+        }
+
         if (usuarioId != null) {
             usuarioRepository.findById(usuarioId).ifPresent(registro::setUsuario);
         }
-        if (empresaId != null) {
-            empresaRepository.findById(empresaId).ifPresent(registro::setEmpresa);
+        if (registro.getUsuario() == null && userEmail != null && !userEmail.trim().isEmpty()) {
+            usuarioRepository.findByEmailIgnoreCase(userEmail.trim()).ifPresent(registro::setUsuario);
         }
+        if (registro.getUsuario() == null) {
+            usuarioRepository.findAll().stream().findFirst().ifPresent(registro::setUsuario);
+        }
+
         if (retoId != null) {
             retoRepository.findById(retoId).ifPresent(registro::setReto);
         }
 
+        if (empresaId != null) {
+            empresaRepository.findById(empresaId).ifPresent(registro::setEmpresa);
+        } else if (registro.getReto() != null && registro.getReto().getEmpresa() != null) {
+            registro.setEmpresa(registro.getReto().getEmpresa());
+        }
+
         return registroRepository.save(registro);
+    }
+
+    public Registro create(Registro registro, Integer usuarioId, Integer empresaId, Integer retoId) {
+        return create(registro, usuarioId, empresaId, retoId, null);
     }
 
     public Optional<Registro> update(Integer id, Registro data, Integer usuarioId, Integer empresaId, Integer retoId) {

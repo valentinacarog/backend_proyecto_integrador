@@ -26,6 +26,24 @@ public class EmpresaService {
     }
 
     public Empresa create(Empresa empresa) {
+        if (empresa.getNit() == null || empresa.getNit().trim().isEmpty()) {
+            empresa.setNit("NIT-" + System.currentTimeMillis());
+        }
+        if (empresa.getSector() == null || empresa.getSector().trim().isEmpty()) {
+            empresa.setSector("Tecnología");
+        }
+        if (empresa.getEmail() == null || empresa.getEmail().trim().isEmpty()) {
+            empresa.setEmail("contacto" + System.currentTimeMillis() + "@empresa.co");
+        }
+        if (empresa.getTelefono() == null || empresa.getTelefono().trim().isEmpty()) {
+            empresa.setTelefono("+57 300 000 0000");
+        }
+        if (empresa.getCiudad() == null || empresa.getCiudad().trim().isEmpty()) {
+            empresa.setCiudad("Medellín");
+        }
+        if (empresa.getEstado() == null || empresa.getEstado().trim().isEmpty()) {
+            empresa.setEstado("ACTIVO");
+        }
         return empresaRepository.save(empresa);
     }
 

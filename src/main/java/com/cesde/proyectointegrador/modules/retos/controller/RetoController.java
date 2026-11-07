@@ -37,6 +37,34 @@ public class RetoController {
                         .body((Reto) null));
     }
 
+    private Integer extractId(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof Map) {
+            Object idVal = ((Map<?, ?>) val).get("id");
+            if (idVal instanceof Number) return ((Number) idVal).intValue();
+            if (idVal != null) {
+                try { return Integer.parseInt(idVal.toString()); } catch (Exception ignored) {}
+            }
+        }
+        try {
+            return Integer.parseInt(val.toString());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private LocalDate parseDate(Object val) {
+        if (val == null) return null;
+        try {
+            String str = val.toString().trim();
+            if (str.length() >= 10) {
+                return LocalDate.parse(str.substring(0, 10));
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     @PostMapping
     public ResponseEntity<Reto> create(@RequestBody Map<String, Object> payload) {
         Reto reto = new Reto();
@@ -46,28 +74,24 @@ public class RetoController {
         reto.setEstado(payload.get("estado") != null ? (String) payload.get("estado") : "ABIERTO");
 
         if (payload.get("puntos") != null) {
-            reto.setPuntos(Integer.valueOf(payload.get("puntos").toString()));
+            try {
+                reto.setPuntos(Integer.valueOf(payload.get("puntos").toString()));
+            } catch (Exception ignored) {
+                reto.setPuntos(100);
+            }
         }
 
-        if (payload.get("fechaLimite") != null) {
-            reto.setFechaLimite(LocalDate.parse(payload.get("fechaLimite").toString().substring(0, 10)));
-        } else if (payload.get("fecha_limite") != null) {
-            reto.setFechaLimite(LocalDate.parse(payload.get("fecha_limite").toString().substring(0, 10)));
-        }
+        LocalDate fecha = parseDate(payload.get("fechaLimite"));
+        if (fecha == null) fecha = parseDate(payload.get("fecha_limite"));
+        if (fecha != null) reto.setFechaLimite(fecha);
 
-        Integer empresaId = null;
-        if (payload.get("empresaId") != null) {
-            empresaId = Integer.valueOf(payload.get("empresaId").toString());
-        } else if (payload.get("empresa_id") != null) {
-            empresaId = Integer.valueOf(payload.get("empresa_id").toString());
-        }
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        Integer categoriaId = null;
-        if (payload.get("categoriaId") != null) {
-            categoriaId = Integer.valueOf(payload.get("categoriaId").toString());
-        } else if (payload.get("categoria_id") != null) {
-            categoriaId = Integer.valueOf(payload.get("categoria_id").toString());
-        }
+        Integer categoriaId = extractId(payload.get("categoriaId"));
+        if (categoriaId == null) categoriaId = extractId(payload.get("categoria_id"));
+        if (categoriaId == null) categoriaId = extractId(payload.get("categoria"));
 
         Reto created = retoService.create(reto, empresaId, categoriaId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -82,28 +106,22 @@ public class RetoController {
         if (payload.containsKey("estado")) reto.setEstado((String) payload.get("estado"));
 
         if (payload.containsKey("puntos") && payload.get("puntos") != null) {
-            reto.setPuntos(Integer.valueOf(payload.get("puntos").toString()));
+            try {
+                reto.setPuntos(Integer.valueOf(payload.get("puntos").toString()));
+            } catch (Exception ignored) {}
         }
 
-        if (payload.containsKey("fechaLimite") && payload.get("fechaLimite") != null) {
-            reto.setFechaLimite(LocalDate.parse(payload.get("fechaLimite").toString().substring(0, 10)));
-        } else if (payload.containsKey("fecha_limite") && payload.get("fecha_limite") != null) {
-            reto.setFechaLimite(LocalDate.parse(payload.get("fecha_limite").toString().substring(0, 10)));
-        }
+        LocalDate fecha = parseDate(payload.get("fechaLimite"));
+        if (fecha == null) fecha = parseDate(payload.get("fecha_limite"));
+        if (fecha != null) reto.setFechaLimite(fecha);
 
-        Integer empresaId = null;
-        if (payload.containsKey("empresaId") && payload.get("empresaId") != null) {
-            empresaId = Integer.valueOf(payload.get("empresaId").toString());
-        } else if (payload.containsKey("empresa_id") && payload.get("empresa_id") != null) {
-            empresaId = Integer.valueOf(payload.get("empresa_id").toString());
-        }
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        Integer categoriaId = null;
-        if (payload.containsKey("categoriaId") && payload.get("categoriaId") != null) {
-            categoriaId = Integer.valueOf(payload.get("categoriaId").toString());
-        } else if (payload.containsKey("categoria_id") && payload.get("categoria_id") != null) {
-            categoriaId = Integer.valueOf(payload.get("categoria_id").toString());
-        }
+        Integer categoriaId = extractId(payload.get("categoriaId"));
+        if (categoriaId == null) categoriaId = extractId(payload.get("categoria_id"));
+        if (categoriaId == null) categoriaId = extractId(payload.get("categoria"));
 
         return retoService.update(id, reto, empresaId, categoriaId)
                 .map(ResponseEntity::ok)

@@ -38,6 +38,19 @@ public class UsuarioService {
     }
 
     public Usuario create(Usuario usuario, Integer empresaId) {
+        if (usuario.getNombre() == null || usuario.getNombre().trim().isEmpty()) {
+            usuario.setNombre("Usuario");
+        }
+        if (usuario.getApellido() == null) {
+            usuario.setApellido("");
+        }
+        if (usuario.getRol() == null || usuario.getRol().trim().isEmpty()) {
+            usuario.setRol("USUARIO");
+        }
+        if (usuario.getEstado() == null || usuario.getEstado().trim().isEmpty()) {
+            usuario.setEstado("ACTIVO");
+        }
+
         String rawPassword = (usuario.getPassword() != null && !usuario.getPassword().trim().isEmpty())
                 ? usuario.getPassword().trim()
                 : "Admin123!";
