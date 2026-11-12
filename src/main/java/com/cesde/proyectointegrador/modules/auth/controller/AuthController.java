@@ -56,8 +56,18 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
         }
 
-        boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash())
-                || request.getPassword().equals("Admin123!");
+        boolean passwordMatches = false;
+        try {
+            passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
+        } catch (Exception ignored) {}
+
+        // Migración de seguridad transparente: Si la cuenta tiene el hash placeholder semilla y usa la clave inicial
+        String seedPlaceholder = "$2a$10$wE9K2jT3U7O4eXW1oV10e.6NfU5I8X1T1V7G8H9J0K1L2M3N4O5P6";
+        if (!passwordMatches && seedPlaceholder.equals(user.getPasswordHash()) && "Admin123!".equals(request.getPassword())) {
+            passwordMatches = true;
+            // Migrar a un hash BCrypt real inmediatamente
+            usuarioService.updatePasswordHash(user.getId(), passwordEncoder.encode("Admin123!"));
+        }
 
         if (!passwordMatches) {
             Map<String, Object> err = new HashMap<>();
@@ -99,7 +109,17 @@ public class AuthController {
         nuevo.setEmail(request.getEmail().trim().toLowerCase());
         nuevo.setPassword(request.getPassword());
         nuevo.setTelefono(request.getTelefono());
-        nuevo.setRol(request.getRol() != null ? request.getRol() : "USUARIO");
+
+        // Control de escalación de privilegios: El registro público NUNCA puede auto-asignarse rol ADMIN
+        String rolSolicitado = (request.getRol() != null) ? request.getRol().trim().toUpperCase() : "USUARIO";
+        if ("ADMIN".equals(rolSolicitado)) {
+            nuevo.setRol("USUARIO");
+        } else if ("EMPRESA".equals(rolSolicitado)) {
+            nuevo.setRol("EMPRESA");
+        } else {
+            nuevo.setRol("USUARIO");
+        }
+
         nuevo.setEstado("ACTIVO");
 
         Usuario created = usuarioService.create(nuevo, request.getEmpresaId());

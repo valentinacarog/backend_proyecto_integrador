@@ -42,9 +42,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Permitir peticiones preflight OPTIONS de CORS siempre
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // Rutas públicas (raíz, health check y endpoints de la API)
-                .requestMatchers("/", "/health", "/error").permitAll()
-                .requestMatchers("/api", "/api/**").permitAll()
+                // Rutas públicas de diagnóstico, raíz y health check
+                .requestMatchers("/", "/health", "/error", "/api", "/api/health").permitAll()
+                // Endpoints públicos de autenticación
+                .requestMatchers("/api/auth/**").permitAll()
+                // Catálogo de consulta pública para el frontend
+                .requestMatchers(HttpMethod.GET, "/api/categorias/**", "/api/empresas/**", "/api/retos/**").permitAll()
+                // Gestión de usuarios y operaciones de escritura requieren autenticación obligatoria
+                .requestMatchers(HttpMethod.GET, "/api/usuarios/**").authenticated()
+                .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             );
 

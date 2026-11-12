@@ -5,6 +5,7 @@ import com.cesde.proyectointegrador.modules.usuarios.service.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -71,7 +72,7 @@ public class UsuarioController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload, Authentication authentication) {
         Usuario usuario = new Usuario();
         if (payload.containsKey("nombre")) usuario.setNombre((String) payload.get("nombre"));
         if (payload.containsKey("apellido")) usuario.setApellido((String) payload.get("apellido"));
@@ -85,15 +86,25 @@ public class UsuarioController {
         if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
         if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        return usuarioService.update(id, usuario, empresaId)
+        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        return usuarioService.update(id, usuario, empresaId, esAdmin)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body((Usuario) null));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id, Authentication authentication) {
         Map<String, Object> response = new HashMap<>();
+
+        if (id != null && id == 1) {
+            response.put("success", false);
+            response.put("message", "Acción denegada: No se permite eliminar la cuenta del Administrador principal");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        }
+
         boolean deleted = usuarioService.delete(id);
         if (deleted) {
             response.put("success", true);
@@ -101,7 +112,7 @@ public class UsuarioController {
             return ResponseEntity.ok(response);
         } else {
             response.put("success", false);
-            response.put("message", "Usuario no encontrado");
+            response.put("message", "Usuario no encontrado o no se pudo eliminar");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
     }
