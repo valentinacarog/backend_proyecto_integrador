@@ -14,6 +14,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
 
     Optional<Usuario> findByEmailIgnoreCase(String email);
 
+    List<Usuario> findByEmpresaId(Integer empresaId);
+
     @Query("SELECT u FROM Usuario u WHERE " +
            "(:search IS NULL OR LOWER(u.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.apellido) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
