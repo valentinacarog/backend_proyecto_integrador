@@ -4,6 +4,7 @@ import com.cesde.proyectointegrador.modules.empresas.repository.EmpresaRepositor
 import com.cesde.proyectointegrador.modules.registros.entity.Registro;
 import com.cesde.proyectointegrador.modules.registros.repository.RegistroRepository;
 import com.cesde.proyectointegrador.modules.retos.repository.RetoRepository;
+import com.cesde.proyectointegrador.modules.usuarios.entity.Usuario;
 import com.cesde.proyectointegrador.modules.usuarios.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
