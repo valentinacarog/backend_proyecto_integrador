@@ -21,10 +21,6 @@ WORKDIR /app
 # Certificados SSL para validar conexión a TiDB Cloud
 RUN apk --no-cache add ca-certificates curl
 
-# Crear usuario sin privilegios root por seguridad
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-USER appuser
-
 # Copiar el JAR generado por Maven
 COPY --from=builder /build/target/proyecto-integrador-backend-1.0.0.jar app.jar
 
@@ -32,5 +28,5 @@ COPY --from=builder /build/target/proyecto-integrador-backend-1.0.0.jar app.jar
 ENV PORT=3000
 EXPOSE 3000
 
-# Parámetros optimizados para contenedores en nube
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+# Parámetros optimizados para contenedores en nube con aceleración de entropía urandom y enlace de puerto dinámico
+ENTRYPOINT ["sh", "-c", "java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-3000} -Dserver.address=0.0.0.0 -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
