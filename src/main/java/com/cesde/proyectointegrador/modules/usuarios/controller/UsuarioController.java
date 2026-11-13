@@ -32,8 +32,7 @@ public class UsuarioController {
     public ResponseEntity<?> getById(@PathVariable Integer id) {
         return usuarioService.getById(id)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body((Usuario) null));
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     private Integer extractId(Object val) {
@@ -89,7 +88,9 @@ public class UsuarioController {
         map.put("id", u.getId());
         map.put("nombre", u.getNombre());
         map.put("apellido", u.getApellido());
-        map.put("nombreCompleto", (u.getNombre() != null ? u.getNombre() : "") + " " + (u.getApellido() != null ? u.getApellido() : "")).toString().trim();
+        String nombre = u.getNombre() != null ? u.getNombre().trim() : "";
+        String apellido = u.getApellido() != null ? u.getApellido().trim() : "";
+        map.put("nombreCompleto", (nombre + " " + apellido).trim());
         map.put("email", u.getEmail());
         map.put("telefono", u.getTelefono());
         map.put("rol", u.getRol());
@@ -160,9 +161,12 @@ public class UsuarioController {
         Integer empresaId = extractId(payload.get("empresaId"));
         if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
 
-        return usuarioService.update(currentUser.getId(), data, empresaId, esAdmin)
-                .map(u -> ResponseEntity.ok(buildProfileMap(u)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+        Optional<Usuario> updatedOpt = usuarioService.update(currentUser.getId(), data, empresaId, esAdmin);
+        if (updatedOpt.isPresent()) {
+            return ResponseEntity.ok(buildProfileMap(updatedOpt.get()));
+        } else {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
@@ -174,7 +178,7 @@ public class UsuarioController {
 
         Optional<Usuario> targetUserOpt = usuarioService.getById(id);
         if (targetUserOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body((Usuario) null);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
         Usuario targetUser = targetUserOpt.get();
@@ -212,10 +216,12 @@ public class UsuarioController {
         if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
         if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        return usuarioService.update(id, usuario, empresaId, esAdmin)
-                .map(u -> ResponseEntity.ok(buildProfileMap(u)))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body((Usuario) null));
+        Optional<Usuario> updatedOpt = usuarioService.update(id, usuario, empresaId, esAdmin);
+        if (updatedOpt.isPresent()) {
+            return ResponseEntity.ok(buildProfileMap(updatedOpt.get()));
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
     }
 
     @RequestMapping(value = {"/{id}/password", "/{id}/contrasena", "/{id}/cambiar-password", "/{id}/reset-password"}, method = {RequestMethod.PUT, RequestMethod.POST, RequestMethod.PATCH})
