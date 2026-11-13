@@ -87,6 +87,7 @@ public class SecurityConfig {
                 // Consultar usuarios y editar su propio perfil
                 .requestMatchers(HttpMethod.GET, "/api/usuarios", "/api/usuarios/**").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/usuarios", "/api/usuarios/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/usuarios", "/api/usuarios/**").authenticated()
 
                 // Inscripciones y seguimiento de registros en retos
                 .requestMatchers("/api/registros", "/api/registros/**").authenticated()

@@ -52,13 +52,25 @@ public class UsuarioController {
         }
     }
 
+    private String extractPassword(Map<String, Object> payload) {
+        if (payload == null) return null;
+        String[] keys = {"password", "newPassword", "new_password", "contrasena", "nuevaContrasena", "nueva_contrasena", "clave"};
+        for (String key : keys) {
+            Object val = payload.get(key);
+            if (val != null && !val.toString().trim().isEmpty()) {
+                return val.toString().trim();
+            }
+        }
+        return null;
+    }
+
     @PostMapping
     public ResponseEntity<Usuario> create(@RequestBody Map<String, Object> payload) {
         Usuario usuario = new Usuario();
         usuario.setNombre((String) payload.get("nombre"));
         usuario.setApellido((String) payload.get("apellido"));
         usuario.setEmail((String) payload.get("email"));
-        usuario.setPassword((String) payload.get("password"));
+        usuario.setPassword(extractPassword(payload));
         usuario.setTelefono((String) payload.get("telefono"));
         usuario.setRol(payload.get("rol") != null ? (String) payload.get("rol") : "USUARIO");
         usuario.setEstado(payload.get("estado") != null ? (String) payload.get("estado") : "ACTIVO");
@@ -77,7 +89,12 @@ public class UsuarioController {
         if (payload.containsKey("nombre")) usuario.setNombre((String) payload.get("nombre"));
         if (payload.containsKey("apellido")) usuario.setApellido((String) payload.get("apellido"));
         if (payload.containsKey("email")) usuario.setEmail((String) payload.get("email"));
-        if (payload.containsKey("password")) usuario.setPassword((String) payload.get("password"));
+
+        String newPwd = extractPassword(payload);
+        if (newPwd != null) {
+            usuario.setPassword(newPwd);
+        }
+
         if (payload.containsKey("telefono")) usuario.setTelefono((String) payload.get("telefono"));
         if (payload.containsKey("rol")) usuario.setRol((String) payload.get("rol"));
         if (payload.containsKey("estado")) usuario.setEstado((String) payload.get("estado"));
@@ -86,13 +103,56 @@ public class UsuarioController {
         if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
         if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        boolean esAdmin = authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean esAdmin = authentication != null && (
+                authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(authentication.getName())
+        );
 
         return usuarioService.update(id, usuario, empresaId, esAdmin)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body((Usuario) null));
+    }
+
+    @RequestMapping(value = {"/{id}/password", "/{id}/contrasena", "/{id}/cambiar-password", "/{id}/reset-password"}, method = {RequestMethod.PUT, RequestMethod.POST, RequestMethod.PATCH})
+    public ResponseEntity<?> changePassword(@PathVariable Integer id, @RequestBody Map<String, Object> payload, Authentication authentication) {
+        String newPassword = extractPassword(payload);
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "La nueva contraseña es requerida");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        boolean esAdmin = authentication != null && (
+                authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(authentication.getName())
+        );
+
+        Optional<Usuario> targetUserOpt = usuarioService.getById(id);
+        if (targetUserOpt.isEmpty()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Usuario no encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+        }
+
+        Usuario targetUser = targetUserOpt.get();
+
+        boolean esPropioUsuario = authentication != null && targetUser.getEmail().equalsIgnoreCase(authentication.getName());
+        if (!esAdmin && !esPropioUsuario) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No tienes permisos para modificar la contraseña de este usuario");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        }
+
+        usuarioService.updatePassword(id, newPassword.trim());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Contraseña actualizada exitosamente");
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")

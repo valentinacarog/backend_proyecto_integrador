@@ -61,18 +61,20 @@ public class AuthController {
             passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
         } catch (Exception ignored) {}
 
-        // Soporte de clave inicial para Administrador: permite admin123 o Admin123! y migra a BCrypt real
+        // Soporte de migración inicial: si la cuenta aún tiene el hash semilla original
         String pwdInput = request.getPassword().trim();
         String seedPlaceholder = "$2a$10$wE9K2jT3U7O4eXW1oV10e.6NfU5I8X1T1V7G8H9J0K1L2M3N4O5P6";
-        boolean isSeedAdmin = "admin@sistema.com".equalsIgnoreCase(user.getEmail()) || "ADMIN".equalsIgnoreCase(user.getRol());
+        boolean hasSeedHash = user.getPasswordHash() == null 
+                || seedPlaceholder.equals(user.getPasswordHash()) 
+                || user.getPasswordHash().startsWith("$2a$10$wE9K2jT3U7O4eXW1oV10e");
         boolean isDefaultAdminPassword = pwdInput.equalsIgnoreCase("admin123") 
                 || pwdInput.equalsIgnoreCase("admin123!") 
                 || pwdInput.equals("Admin123!");
 
-        if (!passwordMatches && (seedPlaceholder.equals(user.getPasswordHash()) || isSeedAdmin) && isDefaultAdminPassword) {
+        if (!passwordMatches && hasSeedHash && isDefaultAdminPassword) {
             passwordMatches = true;
             // Cifra y guarda la contraseña real en TiDB Cloud
-            usuarioService.updatePasswordHash(user.getId(), passwordEncoder.encode(pwdInput));
+            usuarioService.updatePassword(user.getId(), pwdInput);
         }
 
         if (!passwordMatches) {
@@ -158,5 +160,46 @@ public class AuthController {
         response.put("success", true);
         response.put("message", "Sesión cerrada exitosamente");
         return ResponseEntity.ok(response);
+    }
+
+    @RequestMapping(value = {"/cambiar-password", "/change-password", "/password"}, method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<?> changeMyPassword(@RequestBody Map<String, Object> payload, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No autenticado");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
+        }
+
+        String newPassword = null;
+        String[] keys = {"password", "newPassword", "new_password", "contrasena", "nuevaContrasena", "nueva_contrasena", "clave"};
+        for (String k : keys) {
+            if (payload.get(k) != null && !payload.get(k).toString().trim().isEmpty()) {
+                newPassword = payload.get(k).toString().trim();
+                break;
+            }
+        }
+
+        if (newPassword == null || newPassword.isEmpty()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "La nueva contraseña es requerida");
+            return ResponseEntity.badRequest().body(err);
+        }
+
+        Optional<Usuario> userOpt = usuarioService.getByEmail(authentication.getName());
+        if (userOpt.isEmpty()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Usuario no encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+        }
+
+        usuarioService.updatePassword(userOpt.get().getId(), newPassword);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("success", true);
+        res.put("message", "Contraseña actualizada exitosamente");
+        return ResponseEntity.ok(res);
     }
 }

@@ -110,6 +110,14 @@ public class UsuarioService {
         });
     }
 
+    public boolean updatePassword(Integer id, String rawPassword) {
+        return usuarioRepository.findById(id).map(usr -> {
+            usr.setPasswordHash(passwordEncoder.encode(rawPassword.trim()));
+            usuarioRepository.save(usr);
+            return true;
+        }).orElse(false);
+    }
+
     public boolean delete(Integer id) {
         // Protección crítica: El Administrador principal (ID 1) nunca puede ser eliminado
         if (id != null && id == 1) {
