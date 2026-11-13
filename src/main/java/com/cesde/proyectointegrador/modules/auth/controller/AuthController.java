@@ -3,7 +3,10 @@ package com.cesde.proyectointegrador.modules.auth.controller;
 import com.cesde.proyectointegrador.modules.auth.dto.AuthResponse;
 import com.cesde.proyectointegrador.modules.auth.dto.LoginRequest;
 import com.cesde.proyectointegrador.modules.auth.dto.RegisterRequest;
+import com.cesde.proyectointegrador.modules.empresas.entity.Empresa;
+import com.cesde.proyectointegrador.modules.empresas.repository.EmpresaRepository;
 import com.cesde.proyectointegrador.modules.usuarios.entity.Usuario;
+import com.cesde.proyectointegrador.modules.usuarios.repository.UsuarioRepository;
 import com.cesde.proyectointegrador.modules.usuarios.service.UsuarioService;
 import com.cesde.proyectointegrador.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,6 +27,12 @@ public class AuthController {
 
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private EmpresaRepository empresaRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -39,7 +49,31 @@ public class AuthController {
             return ResponseEntity.badRequest().body(err);
         }
 
-        Optional<Usuario> userOpt = usuarioService.getByEmail(request.getEmail().trim());
+        String inputEmail = request.getEmail().trim();
+        Optional<Usuario> userOpt = usuarioService.getByEmail(inputEmail);
+
+        // Si no existe como usuario directo, verificar si es el correo institucional de una Empresa Aliada
+        if (userOpt.isEmpty()) {
+            Optional<Empresa> empOpt = empresaRepository.findByEmail(inputEmail);
+            if (empOpt.isPresent()) {
+                Empresa emp = empOpt.get();
+                List<Usuario> usuariosEmp = usuarioRepository.findByEmpresaId(emp.getId());
+                if (!usuariosEmp.isEmpty()) {
+                    userOpt = Optional.of(usuariosEmp.get(0));
+                } else {
+                    Usuario nuevo = new Usuario();
+                    nuevo.setNombre(emp.getNombre());
+                    nuevo.setApellido("(Representante)");
+                    nuevo.setEmail(emp.getEmail());
+                    nuevo.setPasswordHash(passwordEncoder.encode("admin123"));
+                    nuevo.setRol("EMPRESA");
+                    nuevo.setEstado("ACTIVO");
+                    nuevo.setEmpresa(emp);
+                    userOpt = Optional.of(usuarioRepository.save(nuevo));
+                }
+            }
+        }
+
         if (userOpt.isEmpty()) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
