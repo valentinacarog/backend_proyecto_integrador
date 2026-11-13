@@ -177,7 +177,7 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(token, created));
     }
 
-    @GetMapping("/me")
+    @GetMapping({"/me", "/perfil"})
     public ResponseEntity<?> getMe(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -186,6 +186,49 @@ public class AuthController {
         return usuarioService.getByEmail(authentication.getName())
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    @RequestMapping(value = {"/me", "/perfil"}, method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<?> updateMe(@RequestBody Map<String, Object> payload, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No autenticado");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
+        }
+
+        Optional<Usuario> userOpt = usuarioService.getByEmail(authentication.getName());
+        if (userOpt.isEmpty()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Usuario no encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+        }
+
+        Usuario currentUser = userOpt.get();
+        boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"));
+
+        Usuario data = new Usuario();
+        if (payload.containsKey("nombre")) data.setNombre((String) payload.get("nombre"));
+        if (payload.containsKey("apellido")) data.setApellido((String) payload.get("apellido"));
+        if (payload.containsKey("telefono")) data.setTelefono((String) payload.get("telefono"));
+
+        String avatar = null;
+        if (payload.get("avatar") != null) avatar = payload.get("avatar").toString();
+        if (avatar == null && payload.get("avatarUrl") != null) avatar = payload.get("avatarUrl").toString();
+        if (avatar != null) data.setAvatarUrl(avatar);
+
+        String[] keys = {"password", "newPassword", "new_password", "contrasena", "nuevaContrasena", "nueva_contrasena", "clave"};
+        for (String k : keys) {
+            if (payload.get(k) != null && !payload.get(k).toString().trim().isEmpty()) {
+                data.setPassword(payload.get(k).toString().trim());
+                break;
+            }
+        }
+
+        return usuarioService.update(currentUser.getId(), data, null, esAdmin)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
     }
 
     @PostMapping("/logout")

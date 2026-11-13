@@ -84,33 +84,136 @@ public class UsuarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    private Map<String, Object> buildProfileMap(Usuario u) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", u.getId());
+        map.put("nombre", u.getNombre());
+        map.put("apellido", u.getApellido());
+        map.put("nombreCompleto", (u.getNombre() != null ? u.getNombre() : "") + " " + (u.getApellido() != null ? u.getApellido() : "")).toString().trim();
+        map.put("email", u.getEmail());
+        map.put("telefono", u.getTelefono());
+        map.put("rol", u.getRol());
+        map.put("avatar", u.getAvatarUrl());
+        map.put("avatarUrl", u.getAvatarUrl());
+        map.put("estado", u.getEstado());
+        map.put("createdAt", u.getCreatedAt());
+        map.put("updatedAt", u.getUpdatedAt());
+        if (u.getEmpresa() != null) {
+            map.put("empresaId", u.getEmpresa().getId());
+            map.put("empresaNombre", u.getEmpresa().getNombre());
+            map.put("empresa", u.getEmpresa());
+        }
+        return map;
+    }
+
+    @GetMapping({"/perfil", "/me"})
+    public ResponseEntity<?> getMyProfile(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No autenticado");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
+        }
+        return usuarioService.getByEmail(authentication.getName())
+                .map(u -> ResponseEntity.ok(buildProfileMap(u)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    @RequestMapping(value = {"/perfil", "/me"}, method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<?> updateMyProfile(@RequestBody Map<String, Object> payload, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No autenticado");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(err);
+        }
+        Optional<Usuario> userOpt = usuarioService.getByEmail(authentication.getName());
+        if (userOpt.isEmpty()) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Usuario no encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err);
+        }
+
+        Usuario currentUser = userOpt.get();
+        boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"));
+
+        Usuario data = new Usuario();
+        if (payload.containsKey("nombre")) data.setNombre((String) payload.get("nombre"));
+        if (payload.containsKey("apellido")) data.setApellido((String) payload.get("apellido"));
+        if (payload.containsKey("telefono")) data.setTelefono((String) payload.get("telefono"));
+
+        String avatar = null;
+        if (payload.get("avatar") != null) avatar = payload.get("avatar").toString();
+        if (avatar == null && payload.get("avatarUrl") != null) avatar = payload.get("avatarUrl").toString();
+        if (avatar != null) data.setAvatarUrl(avatar);
+
+        String newPwd = extractPassword(payload);
+        if (newPwd != null) data.setPassword(newPwd);
+
+        if (esAdmin) {
+            if (payload.containsKey("rol")) data.setRol((String) payload.get("rol"));
+            if (payload.containsKey("estado")) data.setEstado((String) payload.get("estado"));
+            if (payload.containsKey("email")) data.setEmail((String) payload.get("email"));
+        }
+
+        Integer empresaId = extractId(payload.get("empresaId"));
+        if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
+
+        return usuarioService.update(currentUser.getId(), data, empresaId, esAdmin)
+                .map(u -> ResponseEntity.ok(buildProfileMap(u)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+    }
+
     @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload, Authentication authentication) {
+        boolean esAdmin = authentication != null && (
+                authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(authentication.getName())
+        );
+
+        Optional<Usuario> targetUserOpt = usuarioService.getById(id);
+        if (targetUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body((Usuario) null);
+        }
+
+        Usuario targetUser = targetUserOpt.get();
+        boolean esPropioUsuario = authentication != null && targetUser.getEmail().equalsIgnoreCase(authentication.getName());
+
+        if (!esAdmin && !esPropioUsuario) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No tienes permisos para modificar el perfil de este usuario");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        }
+
         Usuario usuario = new Usuario();
         if (payload.containsKey("nombre")) usuario.setNombre((String) payload.get("nombre"));
         if (payload.containsKey("apellido")) usuario.setApellido((String) payload.get("apellido"));
-        if (payload.containsKey("email")) usuario.setEmail((String) payload.get("email"));
+        if (payload.containsKey("telefono")) usuario.setTelefono((String) payload.get("telefono"));
+
+        String avatar = null;
+        if (payload.get("avatar") != null) avatar = payload.get("avatar").toString();
+        if (avatar == null && payload.get("avatarUrl") != null) avatar = payload.get("avatarUrl").toString();
+        if (avatar != null) usuario.setAvatarUrl(avatar);
 
         String newPwd = extractPassword(payload);
         if (newPwd != null) {
             usuario.setPassword(newPwd);
         }
 
-        if (payload.containsKey("telefono")) usuario.setTelefono((String) payload.get("telefono"));
-        if (payload.containsKey("rol")) usuario.setRol((String) payload.get("rol"));
-        if (payload.containsKey("estado")) usuario.setEstado((String) payload.get("estado"));
+        if (esAdmin) {
+            if (payload.containsKey("email")) usuario.setEmail((String) payload.get("email"));
+            if (payload.containsKey("rol")) usuario.setRol((String) payload.get("rol"));
+            if (payload.containsKey("estado")) usuario.setEstado((String) payload.get("estado"));
+        }
 
         Integer empresaId = extractId(payload.get("empresaId"));
         if (empresaId == null) empresaId = extractId(payload.get("empresa_id"));
         if (empresaId == null) empresaId = extractId(payload.get("empresa"));
 
-        boolean esAdmin = authentication != null && (
-                authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
-                || "admin@sistema.com".equalsIgnoreCase(authentication.getName())
-        );
-
         return usuarioService.update(id, usuario, empresaId, esAdmin)
-                .map(ResponseEntity::ok)
+                .map(u -> ResponseEntity.ok(buildProfileMap(u)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body((Usuario) null));
     }
