@@ -34,13 +34,27 @@ public class CategoriaController {
     }
 
     @PostMapping
-    public ResponseEntity<Categoria> create(@RequestBody Categoria categoria) {
+    public ResponseEntity<Categoria> create(@RequestBody Map<String, Object> payload) {
+        Categoria categoria = new Categoria();
+        if (payload.get("nombre") != null) categoria.setNombre(payload.get("nombre").toString());
+        if (payload.get("codigo") != null) categoria.setCodigo(payload.get("codigo").toString());
+        if (payload.get("descripcion") != null) categoria.setDescripcion(payload.get("descripcion").toString());
+        if (payload.get("color") != null) categoria.setColor(payload.get("color").toString());
+        if (payload.get("estado") != null) categoria.setEstado(payload.get("estado").toString());
+
         Categoria created = categoriaService.create(categoria);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Categoria categoria) {
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+        Categoria categoria = new Categoria();
+        if (payload.containsKey("nombre") && payload.get("nombre") != null) categoria.setNombre(payload.get("nombre").toString());
+        if (payload.containsKey("codigo") && payload.get("codigo") != null) categoria.setCodigo(payload.get("codigo").toString());
+        if (payload.containsKey("descripcion") && payload.get("descripcion") != null) categoria.setDescripcion(payload.get("descripcion").toString());
+        if (payload.containsKey("color") && payload.get("color") != null) categoria.setColor(payload.get("color").toString());
+        if (payload.containsKey("estado") && payload.get("estado") != null) categoria.setEstado(payload.get("estado").toString());
+
         return categoriaService.update(id, categoria)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -57,7 +71,7 @@ public class CategoriaController {
             return ResponseEntity.ok(response);
         } else {
             response.put("success", false);
-            response.put("message", "Categoría no encontrada");
+            response.put("message", "No se pudo eliminar la categoría");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
     }

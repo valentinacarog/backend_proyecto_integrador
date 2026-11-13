@@ -63,8 +63,17 @@ public class EmpresaService {
 
     public boolean delete(Integer id) {
         if (empresaRepository.existsById(id)) {
-            empresaRepository.deleteById(id);
-            return true;
+            try {
+                empresaRepository.deleteById(id);
+                return true;
+            } catch (Exception e) {
+                // Soft delete si la empresa tiene retos asociados (FK RESTRICT)
+                empresaRepository.findById(id).ifPresent(emp -> {
+                    emp.setEstado("INACTIVO");
+                    empresaRepository.save(emp);
+                });
+                return true;
+            }
         }
         return false;
     }

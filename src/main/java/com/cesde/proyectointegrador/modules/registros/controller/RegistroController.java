@@ -82,7 +82,7 @@ public class RegistroController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
         Registro registro = new Registro();
         if (payload.containsKey("codigo")) registro.setCodigo((String) payload.get("codigo"));

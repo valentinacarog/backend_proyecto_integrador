@@ -35,13 +35,33 @@ public class EmpresaController {
     }
 
     @PostMapping
-    public ResponseEntity<Empresa> create(@RequestBody Empresa empresa) {
+    public ResponseEntity<Empresa> create(@RequestBody Map<String, Object> payload) {
+        Empresa empresa = new Empresa();
+        if (payload.get("nombre") != null) empresa.setNombre(payload.get("nombre").toString());
+        if (payload.get("nit") != null) empresa.setNit(payload.get("nit").toString());
+        if (payload.get("sector") != null) empresa.setSector(payload.get("sector").toString());
+        if (payload.get("email") != null) empresa.setEmail(payload.get("email").toString());
+        if (payload.get("telefono") != null) empresa.setTelefono(payload.get("telefono").toString());
+        if (payload.get("direccion") != null) empresa.setDireccion(payload.get("direccion").toString());
+        if (payload.get("ciudad") != null) empresa.setCiudad(payload.get("ciudad").toString());
+        if (payload.get("estado") != null) empresa.setEstado(payload.get("estado").toString());
+
         Empresa created = empresaService.create(empresa);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Empresa empresa) {
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+        Empresa empresa = new Empresa();
+        if (payload.containsKey("nombre") && payload.get("nombre") != null) empresa.setNombre(payload.get("nombre").toString());
+        if (payload.containsKey("nit") && payload.get("nit") != null) empresa.setNit(payload.get("nit").toString());
+        if (payload.containsKey("sector") && payload.get("sector") != null) empresa.setSector(payload.get("sector").toString());
+        if (payload.containsKey("email") && payload.get("email") != null) empresa.setEmail(payload.get("email").toString());
+        if (payload.containsKey("telefono") && payload.get("telefono") != null) empresa.setTelefono(payload.get("telefono").toString());
+        if (payload.containsKey("direccion") && payload.get("direccion") != null) empresa.setDireccion(payload.get("direccion").toString());
+        if (payload.containsKey("ciudad") && payload.get("ciudad") != null) empresa.setCiudad(payload.get("ciudad").toString());
+        if (payload.containsKey("estado") && payload.get("estado") != null) empresa.setEstado(payload.get("estado").toString());
+
         return empresaService.update(id, empresa)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -58,7 +78,7 @@ public class EmpresaController {
             return ResponseEntity.ok(response);
         } else {
             response.put("success", false);
-            response.put("message", "Empresa no encontrada");
+            response.put("message", "No se pudo eliminar la empresa");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
     }

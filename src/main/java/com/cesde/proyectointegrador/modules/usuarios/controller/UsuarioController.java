@@ -71,7 +71,7 @@ public class UsuarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload, Authentication authentication) {
         Usuario usuario = new Usuario();
         if (payload.containsKey("nombre")) usuario.setNombre((String) payload.get("nombre"));

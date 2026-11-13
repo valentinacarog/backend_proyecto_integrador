@@ -97,7 +97,7 @@ public class RetoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{id}")
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
         Reto reto = new Reto();
         if (payload.containsKey("titulo")) reto.setTitulo((String) payload.get("titulo"));

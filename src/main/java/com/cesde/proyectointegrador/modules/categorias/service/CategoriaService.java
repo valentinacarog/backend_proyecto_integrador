@@ -55,8 +55,17 @@ public class CategoriaService {
 
     public boolean delete(Integer id) {
         if (categoriaRepository.existsById(id)) {
-            categoriaRepository.deleteById(id);
-            return true;
+            try {
+                categoriaRepository.deleteById(id);
+                return true;
+            } catch (Exception e) {
+                // Si la categoría tiene retos vinculados (FK RESTRICT), aplicar borrado lógico
+                categoriaRepository.findById(id).ifPresent(cat -> {
+                    cat.setEstado("INACTIVO");
+                    categoriaRepository.save(cat);
+                });
+                return true;
+            }
         }
         return false;
     }

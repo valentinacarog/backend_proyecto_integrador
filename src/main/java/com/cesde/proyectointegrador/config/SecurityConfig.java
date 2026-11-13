@@ -50,41 +50,46 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
 
                 // Catálogo de consulta pública (lectura de retos, empresas y categorías)
-                .requestMatchers(HttpMethod.GET, "/api/categorias/**", "/api/empresas/**", "/api/retos/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/categorias", "/api/categorias/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/empresas", "/api/empresas/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/retos", "/api/retos/**").permitAll()
 
                 // ====================================================================
-                // PRIVILEGIOS EXCLUSIVOS DEL ADMINISTRADOR (Panel Administrativo)
+                // PRIVILEGIOS DEL ADMINISTRADOR SUPREMO (Panel Administrativo)
                 // ====================================================================
                 // Solo ADMIN puede crear y eliminar usuarios
-                .requestMatchers(HttpMethod.POST, "/api/usuarios").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/usuarios", "/api/usuarios/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/usuarios", "/api/usuarios/**").hasAnyRole("ADMIN", "SUPERADMIN")
 
-                // Solo ADMIN puede crear, editar o eliminar Categorías
-                .requestMatchers(HttpMethod.POST, "/api/categorias/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/categorias/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/categorias/**").hasRole("ADMIN")
+                // Categorías (Crear, Editar y Eliminar sin restricciones para ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/categorias", "/api/categorias/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.PUT, "/api/categorias", "/api/categorias/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/categorias", "/api/categorias/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/categorias", "/api/categorias/**").hasAnyRole("ADMIN", "SUPERADMIN")
 
-                // Solo ADMIN puede crear, editar o eliminar Empresas
-                .requestMatchers(HttpMethod.POST, "/api/empresas/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/empresas/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/empresas/**").hasRole("ADMIN")
+                // Empresas (Crear, Editar y Eliminar sin restricciones para ADMIN)
+                .requestMatchers(HttpMethod.POST, "/api/empresas", "/api/empresas/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.PUT, "/api/empresas", "/api/empresas/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.PATCH, "/api/empresas", "/api/empresas/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.DELETE, "/api/empresas", "/api/empresas/**").hasAnyRole("ADMIN", "SUPERADMIN")
 
                 // ====================================================================
-                // PRIVILEGIOS DE EMPRESA Y ADMINISTRADOR (Gestión de Retos)
+                // PRIVILEGIOS DE RETOS (Empresas y Administrador)
                 // ====================================================================
-                .requestMatchers(HttpMethod.POST, "/api/retos/**").hasAnyRole("ADMIN", "EMPRESA")
-                .requestMatchers(HttpMethod.PUT, "/api/retos/**").hasAnyRole("ADMIN", "EMPRESA")
-                .requestMatchers(HttpMethod.DELETE, "/api/retos/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.PUT, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.PATCH, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
+                .requestMatchers(HttpMethod.DELETE, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN")
 
                 // ====================================================================
                 // ACCESO PARA USUARIOS AUTENTICADOS (Estudiantes / Usuarios)
                 // ====================================================================
                 // Consultar usuarios y editar su propio perfil
-                .requestMatchers(HttpMethod.GET, "/api/usuarios/**").authenticated()
-                .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/usuarios", "/api/usuarios/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/usuarios", "/api/usuarios/**").authenticated()
 
                 // Inscripciones y seguimiento de registros en retos
-                .requestMatchers("/api/registros/**").authenticated()
+                .requestMatchers("/api/registros", "/api/registros/**").authenticated()
 
                 // Cualquier otra solicitud requiere token autenticado
                 .anyRequest().authenticated()

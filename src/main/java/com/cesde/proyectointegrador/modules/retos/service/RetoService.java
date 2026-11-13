@@ -93,8 +93,17 @@ public class RetoService {
 
     public boolean delete(Integer id) {
         if (retoRepository.existsById(id)) {
-            retoRepository.deleteById(id);
-            return true;
+            try {
+                retoRepository.deleteById(id);
+                return true;
+            } catch (Exception e) {
+                // Si el reto tiene registros asociados (FK RESTRICT), soft-delete
+                retoRepository.findById(id).ifPresent(r -> {
+                    r.setEstado("CERRADO");
+                    retoRepository.save(r);
+                });
+                return true;
+            }
         }
         return false;
     }
