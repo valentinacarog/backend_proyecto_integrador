@@ -14,6 +14,9 @@ public interface RegistroRepository extends JpaRepository<Registro, Integer> {
 
     Optional<Registro> findByCodigo(String codigo);
 
+    @Query("SELECT reg FROM Registro reg WHERE reg.usuario.id = :usuarioId AND reg.reto.id = :retoId")
+    Optional<Registro> findByUsuarioIdAndRetoId(@Param("usuarioId") Integer usuarioId, @Param("retoId") Integer retoId);
+
     @Query("SELECT reg FROM Registro reg WHERE " +
            "(:search IS NULL OR LOWER(reg.codigo) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(reg.descripcion) LIKE LOWER(CONCAT('%', :search, '%')) OR " +

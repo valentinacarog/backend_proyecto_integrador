@@ -40,6 +40,39 @@ public class RegistroService {
     }
 
     public Registro create(Registro registro, Integer usuarioId, Integer empresaId, Integer retoId, String userEmail) {
+        // 1. Resolver el usuario a inscribir
+        if (usuarioId != null) {
+            usuarioRepository.findById(usuarioId).ifPresent(registro::setUsuario);
+        } else if (userEmail != null && !userEmail.trim().isEmpty()) {
+            usuarioRepository.findByEmailIgnoreCase(userEmail.trim()).ifPresent(registro::setUsuario);
+        }
+
+        if (registro.getUsuario() == null) {
+            throw new IllegalArgumentException("No se especificó un usuario válido para la inscripción.");
+        }
+
+        // Restricción: Empresas no pueden participar en retos
+        if ("EMPRESA".equalsIgnoreCase(registro.getUsuario().getRol())) {
+            throw new IllegalArgumentException("Las cuentas de empresa no pueden inscribirse ni participar en retos.");
+        }
+
+        // Restricción: Admin no puede auto-inscribirse en retos para sí mismo
+        if (usuarioId == null && ("ADMIN".equalsIgnoreCase(registro.getUsuario().getRol()) || "admin@sistema.com".equalsIgnoreCase(userEmail))) {
+            throw new IllegalArgumentException("El administrador no participa en retos. Para asignar un reto, indique el 'usuarioId' del estudiante.");
+        }
+
+        if (retoId != null) {
+            retoRepository.findById(retoId).ifPresent(registro::setReto);
+        }
+
+        // Evitar duplicados si el estudiante ya está inscrito en este reto
+        if (registro.getUsuario() != null && registro.getReto() != null) {
+            Optional<Registro> existente = registroRepository.findByUsuarioIdAndRetoId(registro.getUsuario().getId(), registro.getReto().getId());
+            if (existente.isPresent()) {
+                return existente.get();
+            }
+        }
+
         if (registro.getCodigo() == null || registro.getCodigo().trim().isEmpty()) {
             int year = Year.now().getValue();
             int randomSuffix = 100 + new Random().nextInt(900);
@@ -49,27 +82,13 @@ public class RegistroService {
         }
 
         if (registro.getDescripcion() == null || registro.getDescripcion().trim().isEmpty()) {
-            registro.setDescripcion("Inscripción / Registro en plataforma");
+            registro.setDescripcion("Inscripción en reto: " + (registro.getReto() != null ? registro.getReto().getTitulo() : "Desafío técnico"));
         }
         if (registro.getTipo() == null || registro.getTipo().trim().isEmpty()) {
             registro.setTipo("INSCRIPCION");
         }
         if (registro.getEstado() == null || registro.getEstado().trim().isEmpty()) {
             registro.setEstado("PENDIENTE");
-        }
-
-        if (usuarioId != null) {
-            usuarioRepository.findById(usuarioId).ifPresent(registro::setUsuario);
-        }
-        if (registro.getUsuario() == null && userEmail != null && !userEmail.trim().isEmpty()) {
-            usuarioRepository.findByEmailIgnoreCase(userEmail.trim()).ifPresent(registro::setUsuario);
-        }
-        if (registro.getUsuario() == null) {
-            usuarioRepository.findAll().stream().findFirst().ifPresent(registro::setUsuario);
-        }
-
-        if (retoId != null) {
-            retoRepository.findById(retoId).ifPresent(registro::setReto);
         }
 
         if (empresaId != null) {
@@ -79,6 +98,68 @@ public class RegistroService {
         }
 
         return registroRepository.save(registro);
+    }
+
+    public Optional<Registro> entregarSolucion(Integer registroId, String repoUrl, String demoUrl, String notas, String userEmail, boolean esAdmin) {
+        return registroRepository.findById(registroId).map(reg -> {
+            boolean esDueno = reg.getUsuario() != null && reg.getUsuario().getEmail().equalsIgnoreCase(userEmail);
+            if (!esAdmin && !esDueno) {
+                throw new SecurityException("No tienes permisos para entregar la solución de este reto.");
+            }
+
+            StringBuilder sb = new StringBuilder();
+            if (reg.getObservaciones() != null && !reg.getObservaciones().isEmpty()) {
+                sb.append(reg.getObservaciones()).append("\n\n");
+            }
+            sb.append("--- [ENTREGA DE SOLUCIÓN] ---");
+            if (repoUrl != null && !repoUrl.trim().isEmpty()) {
+                sb.append("\n• Repositorio: ").append(repoUrl.trim());
+            }
+            if (demoUrl != null && !demoUrl.trim().isEmpty()) {
+                sb.append("\n• Demo/Despliegue: ").append(demoUrl.trim());
+            }
+            if (notas != null && !notas.trim().isEmpty()) {
+                sb.append("\n• Descripción: ").append(notas.trim());
+            }
+
+            reg.setObservaciones(sb.toString().trim());
+            reg.setTipo("ENTREGA");
+            reg.setEstado("COMPLETADO");
+            return registroRepository.save(reg);
+        });
+    }
+
+    public Optional<Registro> evaluarReto(Integer registroId, String nuevoEstado, String retroalimentacion, Integer puntos, String evaluatorEmail, boolean esAdmin) {
+        return registroRepository.findById(registroId).map(reg -> {
+            if (!esAdmin) {
+                Optional<Usuario> evalUser = usuarioRepository.findByEmailIgnoreCase(evaluatorEmail);
+                boolean esEmpresaDuenia = evalUser.isPresent() 
+                        && evalUser.get().getEmpresa() != null 
+                        && reg.getEmpresa() != null 
+                        && evalUser.get().getEmpresa().getId().equals(reg.getEmpresa().getId());
+                if (!esEmpresaDuenia) {
+                    throw new SecurityException("Solo la empresa patrocinadora o el administrador pueden evaluar esta entrega.");
+                }
+            }
+
+            StringBuilder sb = new StringBuilder();
+            if (reg.getObservaciones() != null && !reg.getObservaciones().isEmpty()) {
+                sb.append(reg.getObservaciones()).append("\n\n");
+            }
+            sb.append("--- [EVALUACIÓN DE RETO] ---");
+            sb.append("\n• Resultado: ").append(nuevoEstado != null ? nuevoEstado : "APROBADO");
+            if (retroalimentacion != null && !retroalimentacion.trim().isEmpty()) {
+                sb.append("\n• Retroalimentación: ").append(retroalimentacion.trim());
+            }
+            if (puntos != null) {
+                sb.append("\n• Puntos otorgados: ").append(puntos).append(" XP");
+            }
+
+            reg.setObservaciones(sb.toString().trim());
+            reg.setTipo("EVALUACION");
+            reg.setEstado(nuevoEstado != null ? nuevoEstado.trim().toUpperCase() : "APROBADO");
+            return registroRepository.save(reg);
+        });
     }
 
     public Registro create(Registro registro, Integer usuarioId, Integer empresaId, Integer retoId) {
