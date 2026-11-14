@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/health", "/error", "/api", "/api/health").permitAll()
 
                 // Endpoints públicos de autenticación
-                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/auth/**", "/auth/**", "/login").permitAll()
 
                 // Catálogo de consulta pública (lectura de retos, empresas y categorías)
                 .requestMatchers(HttpMethod.GET, "/api/categorias", "/api/categorias/**").permitAll()
