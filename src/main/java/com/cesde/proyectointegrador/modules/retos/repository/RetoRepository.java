@@ -16,7 +16,7 @@ public interface RetoRepository extends JpaRepository<Reto, Integer> {
            "LOWER(r.descripcion) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.empresa.nombre) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
            "(:dificultad IS NULL OR r.dificultad = :dificultad) AND " +
-           "(:estado IS NULL OR r.estado = :estado) AND " +
+           "((:estado IS NULL AND r.estado != 'CERRADO') OR (:estado IS NOT NULL AND r.estado = :estado)) AND " +
            "(:empresaId IS NULL OR r.empresa.id = :empresaId) AND " +
            "(:categoriaId IS NULL OR r.categoria.id = :categoriaId) AND " +
            "(:incluirVencidos = true OR r.fechaLimite IS NULL OR r.fechaLimite >= CURRENT_DATE) " +

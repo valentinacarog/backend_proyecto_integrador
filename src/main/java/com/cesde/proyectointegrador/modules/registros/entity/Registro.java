@@ -8,6 +8,9 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import java.sql.Types;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @Entity
 @Table(name = "registros")
@@ -111,6 +114,58 @@ public class Registro {
     @JsonProperty("retoTitulo")
     public String getRetoTitulo() {
         return reto != null ? reto.getTitulo() : null;
+    }
+
+    @JsonProperty("datosEntrega")
+    public Map<String, String> getDatosEntrega() {
+        if (observaciones == null || observaciones.trim().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> datos = new HashMap<>();
+        String[] lines = observaciones.split("\\r?\\n");
+        StringBuilder notas = new StringBuilder();
+        StringBuilder feedback = new StringBuilder();
+        boolean inNotas = false;
+        boolean inFeedback = false;
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("• Repositorio:")) {
+                datos.put("repositorio", trimmed.substring("• Repositorio:".length()).trim());
+                inNotas = false;
+                inFeedback = false;
+            } else if (trimmed.startsWith("• Demo/Despliegue:")) {
+                datos.put("demo", trimmed.substring("• Demo/Despliegue:".length()).trim());
+                inNotas = false;
+                inFeedback = false;
+            } else if (trimmed.startsWith("• Descripción:")) {
+                notas.append(trimmed.substring("• Descripción:".length()).trim());
+                inNotas = true;
+                inFeedback = false;
+            } else if (trimmed.startsWith("• Retroalimentación:")) {
+                feedback.append(trimmed.substring("• Retroalimentación:".length()).trim());
+                inFeedback = true;
+                inNotas = false;
+            } else if (trimmed.startsWith("--- [EVALUACIÓN DE LA EMPRESA] ---")) {
+                inFeedback = true;
+                inNotas = false;
+            } else if (trimmed.startsWith("--- [ENTREGA DE SOLUCIÓN] ---")) {
+                inFeedback = false;
+                inNotas = false;
+            } else if (inFeedback && !trimmed.isEmpty()) {
+                if (!trimmed.startsWith("• Estado asignado:")) {
+                    if (feedback.length() > 0) feedback.append(" ");
+                    feedback.append(trimmed);
+                }
+            } else if (inNotas && !trimmed.isEmpty()) {
+                if (notas.length() > 0) notas.append(" ");
+                notas.append(trimmed);
+            }
+        }
+
+        if (notas.length() > 0) datos.put("descripcionSolucion", notas.toString());
+        if (feedback.length() > 0) datos.put("retroalimentacion", feedback.toString());
+        return datos;
     }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

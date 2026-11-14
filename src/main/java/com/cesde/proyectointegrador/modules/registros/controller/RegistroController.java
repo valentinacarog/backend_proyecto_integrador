@@ -36,30 +36,35 @@ public class RegistroController {
             @RequestParam(required = false) Integer empresaId,
             Authentication authentication) {
 
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getName();
+        boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(email);
+
         Integer filterUsuarioId = usuarioId;
         Integer filterEmpresaId = empresaId;
 
-        if (authentication != null && authentication.getName() != null) {
-            String email = authentication.getName();
-            boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
-                    || "admin@sistema.com".equalsIgnoreCase(email);
-
-            if (!esAdmin) {
-                Optional<Usuario> userOpt = usuarioRepository.findByEmailIgnoreCase(email);
-                if (userOpt.isPresent()) {
-                    Usuario u = userOpt.get();
-                    if ("EMPRESA".equalsIgnoreCase(u.getRol())) {
-                        // Empresa solo ve los registros de sus propios retos
-                        if (u.getEmpresa() != null && filterEmpresaId == null) {
-                            filterEmpresaId = u.getEmpresa().getId();
-                        }
-                    } else if ("USUARIO".equalsIgnoreCase(u.getRol())) {
-                        // Estudiante solo ve sus propias inscripciones
-                        if (filterUsuarioId == null) {
-                            filterUsuarioId = u.getId();
-                        }
-                    }
+        if (!esAdmin) {
+            Optional<Usuario> userOpt = usuarioRepository.findByEmailIgnoreCase(email);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            Usuario u = userOpt.get();
+            if ("EMPRESA".equalsIgnoreCase(u.getRol())) {
+                // Empresa solo ve los registros de sus propios retos. Nunca ve los de otras empresas.
+                if (u.getEmpresa() != null) {
+                    filterEmpresaId = u.getEmpresa().getId();
+                } else {
+                    return ResponseEntity.ok(Collections.emptyList());
                 }
+            } else if ("USUARIO".equalsIgnoreCase(u.getRol())) {
+                // Estudiante solo ve sus propias inscripciones/publicaciones. Nunca ve las de otros estudiantes.
+                filterUsuarioId = u.getId();
+            } else {
+                return ResponseEntity.ok(Collections.emptyList());
             }
         }
 
@@ -87,10 +92,54 @@ public class RegistroController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Integer id) {
-        return registroService.getById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    public ResponseEntity<?> getById(@PathVariable Integer id, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Optional<Registro> opt = registroService.getById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Registro reg = opt.get();
+        String email = authentication.getName();
+        boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(email);
+
+        if (esAdmin) {
+            return ResponseEntity.ok(reg);
+        }
+
+        Optional<Usuario> userOpt = usuarioRepository.findByEmailIgnoreCase(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Usuario u = userOpt.get();
+        if ("USUARIO".equalsIgnoreCase(u.getRol())) {
+            // Estudiante solo puede ver su propia publicación y la respuesta recibida
+            if (reg.getUsuario() != null && reg.getUsuario().getId().equals(u.getId())) {
+                return ResponseEntity.ok(reg);
+            }
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No tienes permisos para visualizar esta publicación.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        }
+
+        if ("EMPRESA".equalsIgnoreCase(u.getRol())) {
+            // Empresa solo puede ver publicaciones de retos propios
+            if (u.getEmpresa() != null && reg.getEmpresa() != null && u.getEmpresa().getId().equals(reg.getEmpresa().getId())) {
+                return ResponseEntity.ok(reg);
+            }
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "No tienes permisos para visualizar publicaciones de retos de otra empresa.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        }
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 
     private Integer extractId(Object val) {
@@ -229,7 +278,22 @@ public class RegistroController {
     }
 
     @RequestMapping(value = "/{id}", method = {RequestMethod.PUT, RequestMethod.PATCH})
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Map<String, Object> payload, Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = authentication.getName();
+        boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(email);
+
+        if (!esAdmin) {
+            Map<String, Object> err = new HashMap<>();
+            err.put("success", false);
+            err.put("message", "Solo los administradores pueden modificar directamente los registros de inscripción.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(err);
+        }
+
         Registro registro = new Registro();
         if (payload.containsKey("codigo")) registro.setCodigo((String) payload.get("codigo"));
         if (payload.containsKey("tipo")) registro.setTipo((String) payload.get("tipo"));
@@ -256,17 +320,51 @@ public class RegistroController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id) {
+    public ResponseEntity<Map<String, Object>> delete(@PathVariable Integer id, Authentication authentication) {
         Map<String, Object> response = new HashMap<>();
+        if (authentication == null || authentication.getName() == null) {
+            response.put("success", false);
+            response.put("message", "No autenticado");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
+        Optional<Registro> opt = registroService.getById(id);
+        if (opt.isEmpty()) {
+            response.put("success", false);
+            response.put("message", "Inscripción o publicación no encontrada");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+
+        Registro reg = opt.get();
+        String email = authentication.getName();
+        boolean esAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().contains("ADMIN"))
+                || "admin@sistema.com".equalsIgnoreCase(email);
+
+        if (!esAdmin) {
+            Optional<Usuario> userOpt = usuarioRepository.findByEmailIgnoreCase(email);
+            if (userOpt.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Usuario no autorizado");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+            }
+            Usuario u = userOpt.get();
+            boolean esDueno = reg.getUsuario() != null && reg.getUsuario().getId().equals(u.getId());
+            if (!esDueno) {
+                response.put("success", false);
+                response.put("message", "Solo el administrador o el estudiante titular pueden eliminar o desvincular esta publicación.");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+            }
+        }
+
         boolean deleted = registroService.delete(id);
         if (deleted) {
             response.put("success", true);
-            response.put("message", "Inscripción o asignación desvinculada exitosamente");
+            response.put("message", "Publicación o inscripción eliminada exitosamente");
             return ResponseEntity.ok(response);
         } else {
             response.put("success", false);
-            response.put("message", "Inscripción no encontrada");
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            response.put("message", "No se pudo eliminar el registro");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 }

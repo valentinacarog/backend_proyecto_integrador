@@ -2,10 +2,13 @@ package com.cesde.proyectointegrador.modules.retos.service;
 
 import com.cesde.proyectointegrador.modules.categorias.repository.CategoriaRepository;
 import com.cesde.proyectointegrador.modules.empresas.repository.EmpresaRepository;
+import com.cesde.proyectointegrador.modules.registros.entity.Registro;
+import com.cesde.proyectointegrador.modules.registros.repository.RegistroRepository;
 import com.cesde.proyectointegrador.modules.retos.entity.Reto;
 import com.cesde.proyectointegrador.modules.retos.repository.RetoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,6 +25,9 @@ public class RetoService {
 
     @Autowired
     private CategoriaRepository categoriaRepository;
+
+    @Autowired
+    private RegistroRepository registroRepository;
 
     public List<Reto> getAll(String search, String dificultad, String estado, Integer empresaId, Integer categoriaId, Boolean incluirVencidos) {
         String cleanSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
@@ -96,13 +102,18 @@ public class RetoService {
         });
     }
 
+    @Transactional
     public boolean delete(Integer id) {
         if (retoRepository.existsById(id)) {
             try {
+                List<Registro> regs = registroRepository.findByFilters(null, null, null, null, id, null);
+                if (regs != null && !regs.isEmpty()) {
+                    registroRepository.deleteAll(regs);
+                }
                 retoRepository.deleteById(id);
                 return true;
             } catch (Exception e) {
-                // Si el reto tiene registros asociados (FK RESTRICT), soft-delete
+                // Si la eliminación física falla por cualquier otra restricción, marcar como CERRADO
                 retoRepository.findById(id).ifPresent(r -> {
                     r.setEstado("CERRADO");
                     retoRepository.save(r);
