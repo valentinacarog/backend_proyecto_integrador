@@ -23,11 +23,16 @@ public class RetoService {
     @Autowired
     private CategoriaRepository categoriaRepository;
 
-    public List<Reto> getAll(String search, String dificultad, String estado, Integer empresaId, Integer categoriaId) {
+    public List<Reto> getAll(String search, String dificultad, String estado, Integer empresaId, Integer categoriaId, Boolean incluirVencidos) {
         String cleanSearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
         String cleanDificultad = (dificultad != null && !dificultad.trim().isEmpty()) ? dificultad.trim() : null;
         String cleanEstado = (estado != null && !estado.trim().isEmpty()) ? estado.trim() : null;
-        return retoRepository.findByFilters(cleanSearch, cleanDificultad, cleanEstado, empresaId, categoriaId);
+        boolean incVencidos = Boolean.TRUE.equals(incluirVencidos);
+        return retoRepository.findByFilters(cleanSearch, cleanDificultad, cleanEstado, empresaId, categoriaId, incVencidos);
+    }
+
+    public List<Reto> getAll(String search, String dificultad, String estado, Integer empresaId, Integer categoriaId) {
+        return getAll(search, dificultad, estado, empresaId, categoriaId, false);
     }
 
     public Optional<Reto> getById(Integer id) {

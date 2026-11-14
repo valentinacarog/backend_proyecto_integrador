@@ -9,6 +9,7 @@ import com.cesde.proyectointegrador.modules.usuarios.repository.UsuarioRepositor
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 import java.util.Optional;
@@ -64,6 +65,13 @@ public class RegistroService {
 
         if (retoId != null) {
             retoRepository.findById(retoId).ifPresent(registro::setReto);
+        }
+
+        // Restricción: No inscribirse a retos cuya fecha límite ya venció
+        if (registro.getReto() != null && registro.getReto().getFechaLimite() != null) {
+            if (registro.getReto().getFechaLimite().isBefore(LocalDate.now())) {
+                throw new IllegalArgumentException("No es posible inscribirse a este reto porque su fecha límite (" + registro.getReto().getFechaLimite() + ") ya ha vencido.");
+            }
         }
 
         // Evitar duplicados si el estudiante ya está inscrito en este reto

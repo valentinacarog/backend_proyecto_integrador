@@ -18,11 +18,13 @@ public interface RetoRepository extends JpaRepository<Reto, Integer> {
            "(:dificultad IS NULL OR r.dificultad = :dificultad) AND " +
            "(:estado IS NULL OR r.estado = :estado) AND " +
            "(:empresaId IS NULL OR r.empresa.id = :empresaId) AND " +
-           "(:categoriaId IS NULL OR r.categoria.id = :categoriaId) " +
+           "(:categoriaId IS NULL OR r.categoria.id = :categoriaId) AND " +
+           "(:incluirVencidos = true OR r.fechaLimite IS NULL OR r.fechaLimite >= CURRENT_DATE) " +
            "ORDER BY r.id DESC")
     List<Reto> findByFilters(@Param("search") String search,
                              @Param("dificultad") String dificultad,
                              @Param("estado") String estado,
                              @Param("empresaId") Integer empresaId,
-                             @Param("categoriaId") Integer categoriaId);
+                             @Param("categoriaId") Integer categoriaId,
+                             @Param("incluirVencidos") boolean incluirVencidos);
 }

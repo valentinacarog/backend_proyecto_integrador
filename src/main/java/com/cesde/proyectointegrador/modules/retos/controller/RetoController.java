@@ -25,8 +25,9 @@ public class RetoController {
             @RequestParam(required = false) String dificultad,
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) Integer empresaId,
-            @RequestParam(required = false) Integer categoriaId) {
-        return ResponseEntity.ok(retoService.getAll(search, dificultad, estado, empresaId, categoriaId));
+            @RequestParam(required = false) Integer categoriaId,
+            @RequestParam(required = false, defaultValue = "false") Boolean incluirVencidos) {
+        return ResponseEntity.ok(retoService.getAll(search, dificultad, estado, empresaId, categoriaId, incluirVencidos));
     }
 
     @GetMapping("/{id}")
