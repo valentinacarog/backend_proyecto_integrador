@@ -159,6 +159,17 @@ public class RegistroController {
         }
     }
 
+    private String extractString(Map<String, Object> payload, String... keys) {
+        if (payload == null) return null;
+        for (String k : keys) {
+            Object v = payload.get(k);
+            if (v != null && !v.toString().trim().isEmpty()) {
+                return v.toString().trim();
+            }
+        }
+        return null;
+    }
+
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Map<String, Object> payload, Authentication authentication) {
         try {
@@ -167,7 +178,33 @@ public class RegistroController {
             registro.setTipo(payload.get("tipo") != null ? (String) payload.get("tipo") : "INSCRIPCION");
             registro.setDescripcion((String) payload.get("descripcion"));
             registro.setEstado(payload.get("estado") != null ? (String) payload.get("estado") : "PENDIENTE");
-            registro.setObservaciones((String) payload.get("observaciones"));
+
+            String repoUrl = extractString(payload, "repositorioUrl", "repoUrl", "repositorio", "repo", "github", "githubUrl");
+            String demoUrl = extractString(payload, "demoUrl", "demo", "despliegue", "despliegueUrl", "urlDemo");
+            String archivoUrl = extractString(payload, "archivoUrl", "archivo", "fileUrl", "file", "documentoUrl");
+            String notas = extractString(payload, "descripcionSolucion", "solucion", "notas", "comentarios");
+
+            StringBuilder obs = new StringBuilder();
+            if (payload.get("observaciones") != null && !payload.get("observaciones").toString().trim().isEmpty()) {
+                obs.append(payload.get("observaciones").toString().trim());
+            }
+
+            if (repoUrl != null || demoUrl != null || archivoUrl != null || notas != null) {
+                if (obs.length() > 0) obs.append("\n\n");
+                obs.append("--- [ENTREGA DE SOLUCIÓN] ---");
+                if (repoUrl != null) obs.append("\n• Repositorio: ").append(repoUrl);
+                if (demoUrl != null) obs.append("\n• Demo/Despliegue: ").append(demoUrl);
+                if (archivoUrl != null) obs.append("\n• Archivo: ").append(archivoUrl);
+                if (notas != null) obs.append("\n• Descripción: ").append(notas);
+                registro.setTipo("ENTREGA");
+                registro.setEstado("COMPLETADO");
+            }
+
+            if (obs.length() > 0) {
+                registro.setObservaciones(obs.toString());
+            } else if (payload.get("observaciones") != null) {
+                registro.setObservaciones((String) payload.get("observaciones"));
+            }
 
             Integer usuarioId = extractId(payload.get("usuarioId"));
             if (usuarioId == null) usuarioId = extractId(payload.get("usuario_id"));

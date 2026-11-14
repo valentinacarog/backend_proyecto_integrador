@@ -138,6 +138,10 @@ public class Registro {
                 datos.put("demo", trimmed.substring("• Demo/Despliegue:".length()).trim());
                 inNotas = false;
                 inFeedback = false;
+            } else if (trimmed.startsWith("• Archivo:")) {
+                datos.put("archivo", trimmed.substring("• Archivo:".length()).trim());
+                inNotas = false;
+                inFeedback = false;
             } else if (trimmed.startsWith("• Descripción:")) {
                 notas.append(trimmed.substring("• Descripción:".length()).trim());
                 inNotas = true;
@@ -166,6 +170,31 @@ public class Registro {
         if (notas.length() > 0) datos.put("descripcionSolucion", notas.toString());
         if (feedback.length() > 0) datos.put("retroalimentacion", feedback.toString());
         return datos;
+    }
+
+    @JsonProperty("repositorioUrl")
+    public String getRepositorioUrl() {
+        return getDatosEntrega().get("repositorio");
+    }
+
+    @JsonProperty("demoUrl")
+    public String getDemoUrl() {
+        return getDatosEntrega().get("demo");
+    }
+
+    @JsonProperty("archivoUrl")
+    public String getArchivoUrl() {
+        return getDatosEntrega().get("archivo");
+    }
+
+    @JsonProperty("descripcionSolucion")
+    public String getDescripcionSolucion() {
+        return getDatosEntrega().get("descripcionSolucion");
+    }
+
+    @JsonProperty("retroalimentacion")
+    public String getRetroalimentacion() {
+        return getDatosEntrega().get("retroalimentacion");
     }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

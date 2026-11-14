@@ -74,11 +74,26 @@ public class RegistroService {
             }
         }
 
-        // Evitar duplicados si el estudiante ya está inscrito en este reto
+        // Si el estudiante ya está inscrito en este reto, actualizar la entrega si trae nuevos datos
         if (registro.getUsuario() != null && registro.getReto() != null) {
             Optional<Registro> existente = registroRepository.findByUsuarioIdAndRetoId(registro.getUsuario().getId(), registro.getReto().getId());
             if (existente.isPresent()) {
-                return existente.get();
+                Registro reg = existente.get();
+                if (registro.getObservaciones() != null && !registro.getObservaciones().trim().isEmpty()) {
+                    reg.setObservaciones(registro.getObservaciones());
+                    reg.setTipo("ENTREGA");
+                    reg.setEstado("COMPLETADO");
+                    if (registro.getDescripcion() != null && !registro.getDescripcion().trim().isEmpty()) {
+                        reg.setDescripcion(registro.getDescripcion());
+                    }
+                    return registroRepository.save(reg);
+                }
+                if ("ENTREGA".equalsIgnoreCase(registro.getTipo())) {
+                    reg.setTipo("ENTREGA");
+                    reg.setEstado("COMPLETADO");
+                    return registroRepository.save(reg);
+                }
+                return reg;
             }
         }
 

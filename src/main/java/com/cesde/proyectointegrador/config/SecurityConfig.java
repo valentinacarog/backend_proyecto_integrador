@@ -76,6 +76,13 @@ public class SecurityConfig {
                 // ====================================================================
                 // PRIVILEGIOS DE RETOS (Empresas y Administrador)
                 // ====================================================================
+                // Acciones de estudiantes sobre retos (inscribirse, entregar solución, consultar entregas)
+                .requestMatchers(HttpMethod.POST,
+                    "/api/retos/*/inscribir", "/api/retos/*/inscribirse", "/api/retos/*/aceptar",
+                    "/api/retos/*/entregar", "/api/retos/*/subir", "/api/retos/*/solucion").authenticated()
+                .requestMatchers(HttpMethod.GET,
+                    "/api/retos/*/registros", "/api/retos/*/entregas", "/api/retos/*/postulaciones").authenticated()
+
                 .requestMatchers(HttpMethod.POST, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
                 .requestMatchers(HttpMethod.PUT, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
                 .requestMatchers(HttpMethod.PATCH, "/api/retos", "/api/retos/**").hasAnyRole("ADMIN", "SUPERADMIN", "EMPRESA")
